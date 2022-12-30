@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 const createSqlite string = `
@@ -24,28 +26,32 @@ const createPostgresql string = `
 	);
 `
 
-const (
-    host     = "localhost"
-    port     = 5400
-    user     = "postgres"
-    password = "<password>"
-    dbname   = "mailservice"
-)
+//go:embed config.json
+var postgresqlConfigFile string
 
-//DBType is a useful alias to define an enumeration for database choice
+type PostgresConfig struct {
+	Host     string `json:"host"`
+	Port     uint16 `json:"port"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	Dbname   string `json:"dbname"`
+}
+
+// DBType is a useful alias to define an enumeration for database choice
 type DBType int64
+
 const (
 	Sqlite DBType = iota
 	Postgresql
 )
 
-//App represents the web application model
+// App represents the web application model
 type App struct {
-	db *sql.DB
+	db  *sql.DB
 	mux *http.ServeMux
 }
 
-//NewApp generates a pointer to a new App fully initialized
+// NewApp generates a pointer to a new App fully initialized
 func NewApp(dbtype DBType) (*App, error) {
 	app := App{}
 	if err := app.initDB(dbtype); err != nil {
@@ -55,7 +61,7 @@ func NewApp(dbtype DBType) (*App, error) {
 	return &app, nil
 }
 
-//openDB configures DB settings and initialize it
+// openDB configures DB settings and initialize it
 func openDB(dbtype DBType) (*sql.DB, error) {
 	var db *sql.DB
 
@@ -65,18 +71,24 @@ func openDB(dbtype DBType) (*sql.DB, error) {
 		if err != nil {
 			return nil, err
 		}
-	
+
 		_, err = db.Exec(createSqlite)
 		if err != nil {
 			return nil, err
 		}
 	case Postgresql:
-		psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+		//parsing configuration file for postgresql
+		var pgConfig PostgresConfig
+		if err := json.NewDecoder(strings.NewReader(postgresqlConfigFile)).Decode(&pgConfig); err != nil {
+			return nil, err
+		}
+
+		psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", pgConfig.Host, pgConfig.Port, pgConfig.User, pgConfig.Password, pgConfig.Dbname)
 		db, err := sql.Open("postgres", psqlconn)
 		if err != nil {
 			return nil, err
 		}
-	
+
 		_, err = db.Exec(createPostgresql)
 		if err != nil {
 			return nil, err
@@ -86,8 +98,8 @@ func openDB(dbtype DBType) (*sql.DB, error) {
 	return db, nil
 }
 
-//initDB initialize the App internal DB
-func (a *App) initDB(dbtype DBType) (error) {
+// initDB initialize the App internal DB
+func (a *App) initDB(dbtype DBType) error {
 	db, err := openDB(dbtype)
 	if err != nil {
 		return err
@@ -97,13 +109,13 @@ func (a *App) initDB(dbtype DBType) (error) {
 	return nil
 }
 
-func (a *App) initMux(){
+func (a *App) initMux() {
 	a.mux = http.NewServeMux()
 	a.mux.HandleFunc("/savemail", a.saveMail)
 	a.mux.HandleFunc("/mails", a.getMails)
 }
 
-func (a * App) saveMail(w http.ResponseWriter, r *http.Request){
+func (a *App) saveMail(w http.ResponseWriter, r *http.Request) {
 	var mail MailItem
 	if err := json.NewDecoder(r.Body).Decode(&mail); err != nil {
 		http.Error(w, err.Error(), 500)
@@ -115,14 +127,14 @@ func (a * App) saveMail(w http.ResponseWriter, r *http.Request){
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(mail); err != nil {
 		http.Error(w, err.Error(), 500)
 	}
 }
 
-func (a *App) getMails(w http.ResponseWriter, r *http.Request){
+func (a *App) getMails(w http.ResponseWriter, r *http.Request) {
 	mails, err := getMails(a.db)
 	if err != nil {
 		http.Error(w, err.Error(), 500)

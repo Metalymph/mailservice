@@ -2,18 +2,18 @@ package main
 
 import (
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
 	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
-//MailItem represents an email data structure
+// MailItem represents an email data structure
 type MailItem struct {
-	Name string `json:"name"`
-	Mail string `json:"mail"`
+	Name    string `json:"name"`
+	Mail    string `json:"mail"`
 	Message string `json:"message"`
 }
 
-//saveMail saves a complete mail details into db
+// saveMail saves a complete mail details into db
 func saveMail(db *sql.DB, mail *MailItem) error {
 	if _, err := db.Exec("INSERT INTO mails(name, address, message) VALUES (?, ?, ?)", mail.Name, mail.Mail, mail.Message); err != nil {
 		return err
@@ -21,7 +21,7 @@ func saveMail(db *sql.DB, mail *MailItem) error {
 	return nil
 }
 
-//getMails returns all MailItem saved into db
+// getMails returns all MailItem saved into db
 func getMails(db *sql.DB) ([]MailItem, error) {
 	rows, err := db.Query("SELECT * FROM mails")
 	if err != nil {
