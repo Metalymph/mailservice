@@ -1,6 +1,10 @@
 package main
 
-import "database/sql"
+import (
+	"database/sql"
+	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
+)
 
 //MailItem represents an email data structure
 type MailItem struct {
