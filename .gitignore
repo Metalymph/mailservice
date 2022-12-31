@@ -1,0 +1,4 @@
+#ignore build dir
+/build
+#ignore db config file
+config.json
