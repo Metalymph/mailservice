@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -14,16 +13,23 @@ type MailItem struct {
 }
 
 // saveMail saves a complete mail details into db
-func saveMail(db *sql.DB, mail *MailItem) error {
-	if _, err := db.Exec("INSERT INTO mails(name, address, message) VALUES (?, ?, ?)", mail.Name, mail.Mail, mail.Message); err != nil {
-		return err
+func saveMail(a *App, mail *MailItem) error {
+	switch a.dbtype {
+	case Sqlite:
+		if _, err := a.db.Exec("INSERT INTO mails(name, address, message) VALUES (?, ?, ?)", mail.Name, mail.Mail, mail.Message); err != nil {
+			return err
+		}
+	case Postgresql:
+		if _, err := a.db.Exec(`insert into "Mails"("Name", "Address", "Message") values($1, $2, $3)`, mail.Name, mail.Mail, mail.Message); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 // getMails returns all MailItem saved into db
-func getMails(db *sql.DB) ([]MailItem, error) {
-	rows, err := db.Query("SELECT * FROM mails")
+func getMails(a *App) ([]MailItem, error) {
+	rows, err := a.db.Query("SELECT * FROM mails")
 	if err != nil {
 		return nil, err
 	}

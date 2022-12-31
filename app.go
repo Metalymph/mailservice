@@ -18,11 +18,11 @@ const createSqlite string = `
 	);`
 
 const createPostgresql string = `
-	CREATE TABLE mails (
-		id INT PRIMARY KEY,
-		name TEXT,
-		address TEXT,
-		message TEXT,
+	CREATE TABLE Mails (
+		Id SERIAL INT PRIMARY KEY,
+		Name TEXT,
+		Address TEXT,
+		Message TEXT,
 	);
 `
 
@@ -49,6 +49,7 @@ const (
 type App struct {
 	db  *sql.DB
 	mux *http.ServeMux
+	dbtype DBType
 }
 
 // NewApp generates a pointer to a new App fully initialized
@@ -89,6 +90,10 @@ func openDB(dbtype DBType) (*sql.DB, error) {
 			return nil, err
 		}
 
+		if err := db.Ping(); err != nil {
+			return nil, err
+		}
+
 		_, err = db.Exec(createPostgresql)
 		if err != nil {
 			return nil, err
@@ -106,6 +111,7 @@ func (a *App) initDB(dbtype DBType) error {
 	}
 
 	a.db = db
+	a.dbtype = dbtype
 	return nil
 }
 
@@ -123,7 +129,7 @@ func (a *App) saveMail(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	if err := saveMail(a.db, &mail); err != nil {
+	if err := saveMail(a, &mail); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
@@ -135,7 +141,7 @@ func (a *App) saveMail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) getMails(w http.ResponseWriter, r *http.Request) {
-	mails, err := getMails(a.db)
+	mails, err := getMails(a)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
