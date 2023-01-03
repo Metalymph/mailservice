@@ -115,21 +115,21 @@ func (a *App) initDB(dbtype DBType) error {
 	return nil
 }
 
-func (a *App) initMux() {
+func (a App) initMux() {
 	a.mux = http.NewServeMux()
 	a.mux.HandleFunc("/savemail", a.saveMail)
 	a.mux.HandleFunc("/mails", a.getMails)
 }
 
 func (a *App) saveMail(w http.ResponseWriter, r *http.Request) {
-	var mail MailItem
-	if err := json.NewDecoder(r.Body).Decode(&mail); err != nil {
+	var mail *MailItem
+	if err := json.NewDecoder(r.Body).Decode(mail); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
 	defer r.Body.Close()
 
-	if err := saveMail(a, &mail); err != nil {
+	if err := saveMail(a, mail); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
